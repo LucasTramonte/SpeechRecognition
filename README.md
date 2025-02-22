@@ -57,6 +57,14 @@ Execute the main script as follows
 python main.py
 ```
 
+### NVIDIA NeMo Framework
+
+
+```bash
+pip install git+https://github.com/NVIDIA/NeMo-Run.git
+```
+
+
 ## References
 
 1. William Chan, Navdeep Jaitly, Quoc V. Le, and Oriol Vinyals. "Listen, attend and spell: A neural network for large vocabulary conversational speech recognition." In ICASSP, pages 4960–4964. IEEE, 2016.
