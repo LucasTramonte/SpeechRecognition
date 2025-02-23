@@ -64,6 +64,10 @@ python main.py
 pip install git+https://github.com/NVIDIA/NeMo-Run.git
 ```
 
+```bash
+pip install pip install hydra-core omegaconf
+pip install nemo_toolkit['all']
+```
 
 ## References
 
