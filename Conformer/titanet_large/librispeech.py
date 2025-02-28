@@ -30,7 +30,7 @@ def get_embedding(audio_path):
         return None  # Return None in case of failure
 
 # Path to the dataset
-dataset_root = os.path.join("..", "audio", "Dataset", "Test", "LibiSpeech", "test-clean")
+dataset_root = os.path.join("..", "audio", "Datasets", "Test", "LibriSpeech", "test-clean")
 
 # Dictionary to store speaker IDs and their respective audio files
 speaker_files = {}
