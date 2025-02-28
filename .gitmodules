@@ -1,3 +1,0 @@
-[submodule "End-to-end-ASR"]
-	path = End-to-end-ASR
-	url = https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch.git
