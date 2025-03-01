@@ -1,98 +1,151 @@
 import os
 import torch
 import librosa
-import pandas as pd
+import random
+import numpy as np
+from transformers import (
+    AutoProcessor,
+    AutoModelForCTC,
+    TrainingArguments,
+    Trainer
+)
+from dataclasses import dataclass
+from typing import Dict, List, Union
 
-from transformers import AutoProcessor, AutoModelForCTC
+# Disable TensorFlow OneDNN Warning
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-# Define dataset path
-dataset_root = os.path.join("..", "..", "audio", "Datasets", "Test", "LibriSpeech", "test-clean", "121", "121726")
+# Set seed for reproducibility
+torch.manual_seed(42)
+random.seed(42)
+np.random.seed(42)
 
-# Path to transcription file
-transcription_file = os.path.join(dataset_root, "121-121726.trans.txt")
+# Choose one speaker from each dataset
+selected_speaker_dev = "84"  
+selected_speaker_test = "61"  
 
-# Speech recognition model
+# Define dataset paths for selected speakers
+dataset_root = os.path.join("..", "..", "audio", "Datasets", "Fine-tunning", "LibriSpeech", "dev-clean", selected_speaker_dev)
+test_root = os.path.join("..", "..", "audio", "Datasets", "Test", "LibriSpeech", "test-clean", selected_speaker_test)
+
+# Define model name and save path
 MODEL_NAME = "facebook/wav2vec2-conformer-rope-large-960h-ft"
+save_dir = os.path.join(os.getcwd(), "fine-tunning", "cont-fnt-conf")
+os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
 
-# Load model and processor
+# Load pre-trained model & processor
 try:
+    print("Loading model and processor...")
     processor = AutoProcessor.from_pretrained(MODEL_NAME)
     model = AutoModelForCTC.from_pretrained(MODEL_NAME)
+    print("Model loaded successfully.")
 except Exception as e:
     print(f"Error loading model: {e}")
     exit()
 
-# Configure GPU if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-model.eval()
+# Function to load data for a selected speaker
+def load_speaker_dataset(root_path, speaker_id):
+    audio_files = []
+    transcriptions = {}
 
-# Load ground truth transcriptions
-ground_truth_dict = {}
-if os.path.exists(transcription_file):
-    with open(transcription_file, "r", encoding="utf-8") as f:
-        for line in f:
-            parts = line.strip().split(" ", 1)
-            if len(parts) == 2:
-                file_id, text = parts
-                ground_truth_dict[file_id] = text
+    for chapter in os.listdir(root_path):
+        chapter_path = os.path.join(root_path, chapter)
+        if not os.path.isdir(chapter_path):
+            continue
 
-# Process specific audio files
-transcription_results = []
-for i in range(15):  # From 0000 to 0014
-    file_name = f"121-121726-{i:04d}.flac"
-    audio_path = os.path.join(dataset_root, file_name)
-    file_id = file_name[:-5]  # Remove ".flac" extension
+        transcript_file = os.path.join(chapter_path, f"{speaker_id}-{chapter}.trans.txt")
+        if os.path.exists(transcript_file):
+            with open(transcript_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split(" ", 1)
+                    if len(parts) == 2:
+                        file_id, text = parts
+                        transcriptions[file_id] = text
 
-    if not os.path.exists(audio_path):
-        print(f"File not found: {audio_path}")
-        continue
+        for file in os.listdir(chapter_path):
+            if file.endswith(".flac"):
+                file_path = os.path.join(chapter_path, file)
+                file_id = file.replace(".flac", "")
 
-    # Get ground truth transcription
-    ground_truth = ground_truth_dict.get(file_id, "")
+                if file_id in transcriptions:
+                    audio_files.append((file_path, transcriptions[file_id]))
 
-    # Load audio
-    try:
-        speech, sr = librosa.load(audio_path, sr=16000)
-    except Exception as e:
-        print(f"Error loading {audio_path}: {e}")
-        continue
+    return audio_files
 
-    # Convert audio for model input
-    try:
-        inputs = processor(speech, sampling_rate=sr, return_tensors="pt", padding=True)
-        inputs = inputs.to(device)  # Move to GPU
-    except Exception as e:
-        print(f"Error processing audio: {e}")
-        continue
+# Load training and evaluation datasets (only one speaker)
+train_files = load_speaker_dataset(dataset_root, selected_speaker_dev)
+test_files = load_speaker_dataset(test_root, selected_speaker_test)
 
-    # Model inference
-    try:
-        with torch.no_grad():
-            logits = model(**inputs).logits
-    except Exception as e:
-        print(f"Error during inference: {e}")
-        continue
+print(f"Loaded {len(train_files)} training files from speaker {selected_speaker_dev}")
+print(f"Loaded {len(test_files)} evaluation files from speaker {selected_speaker_test}")
 
-    # Decode transcription
-    try:
-        predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = processor.batch_decode(predicted_ids)[0]
-    except Exception as e:
-        print(f"Error decoding: {e}")
-        transcription = ""
+#  Convert dataset into a format suitable for training
+def prepare_dataset(audio_text_pair):
+    audio_path, text = audio_text_pair
+    speech, sr = librosa.load(audio_path, sr=16000)  # Load audio at 16kHz
 
-    # Store results
-    transcription_results.append({
-        "File_Name": file_name,
-        "Transcription": transcription,
-        "Ground_Truth": ground_truth
-    })
+    # Convert text to token IDs
+    inputs = processor(speech, sampling_rate=sr, text=text, return_tensors="pt", padding=True)
+    return {
+        "input_values": inputs.input_values[0],
+        "labels": inputs.labels[0]
+    }
 
-# Create DataFrame to view results
-df = pd.DataFrame(transcription_results)
+# Convert data to model format
+train_dataset = [prepare_dataset(pair) for pair in train_files]
+test_dataset = [prepare_dataset(pair) for pair in test_files]
 
-# Save results to CSV in a results folder
-results_dir =  os.path.join(os.getcwd(), "results")
-results_path = os.path.join(results_dir, "transcription_test.csv")
-df.to_csv(results_path, index=False)
+# Define data collator to handle padding
+@dataclass
+class DataCollatorCTC:
+    processor: AutoProcessor
+
+    def __call__(self, features: List[Dict[str, Union[torch.Tensor, List[int]]]]) -> Dict[str, torch.Tensor]:
+        input_values = [feature["input_values"].clone().detach() for feature in features]
+        labels = [feature["labels"].clone().detach() for feature in features]
+
+        batch = {
+            "input_values": torch.nn.utils.rnn.pad_sequence(input_values, batch_first=True),
+            "labels": torch.nn.utils.rnn.pad_sequence(labels, batch_first=True),
+        }
+        return batch
+
+data_collator = DataCollatorCTC(processor=processor)
+
+# Training arguments (Fixed evaluation strategy and tokenizer deprecation)
+training_args = TrainingArguments(
+    output_dir=save_dir,                # Save model inside "fine-tunning/cont-fnt-conf"
+    per_device_train_batch_size=4,      # Adjust batch size for GPU memory
+    gradient_accumulation_steps=2,
+    eval_strategy="steps",             
+    eval_steps=500,
+    save_strategy="steps",
+    save_steps=500,
+    logging_steps=500,
+    learning_rate=1e-4,                  # Can be fine-tuned further
+    warmup_steps=500,
+    save_total_limit=2,
+    gradient_checkpointing=True,         # Saves memory
+    fp16=True if torch.cuda.is_available() else False,  # Use FP16 if available
+    push_to_hub=False,
+)
+
+# Initialize Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+    preprocessors=processor, 
+    data_collator=data_collator,
+)
+
+# Start fine-tuning
+print("Starting fine-tuning...")
+trainer.train()
+
+# Save the fine-tuned model inside "fine-tunning/cont-fnt-conf"
+trainer.save_model(save_dir)
+processor.save_pretrained(save_dir)
+
+print(f"Fine-tuning complete! Model saved in {save_dir}")
