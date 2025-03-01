@@ -134,14 +134,13 @@ training_args = TrainingArguments(
     push_to_hub=False,
 )
 
-# Initialize Trainer
+# Initialize Trainer (Removed 'preprocessors' parameter)
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=test_dataset,
-    preprocessors=processor,  # Fix tokenizer deprecation warning (was `tokenizer`)
-    data_collator=data_collator,
+    data_collator=data_collator,  # Correct way to handle tokenization
 )
 
 # Start fine-tuning
