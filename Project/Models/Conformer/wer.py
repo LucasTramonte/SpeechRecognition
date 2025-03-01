@@ -1,5 +1,6 @@
 import pandas as pd
 import jiwer
+import os
 
 # Load data from CSV
 df = pd.read_csv("transcription_results.csv")
@@ -28,6 +29,11 @@ df[["WER", "Different_Words"]] = df.apply(calculate_wer_and_diff, axis=1)
 
 # Display the results
 print(df)
+
+
+results_dir =  os.path.join(os.getcwd(), "results")
+results_path = os.path.join(results_dir, "transcription_wer.csv")
+df.to_csv(results_path, index=False)
 
 # Save the results to CSV
 df.to_csv("transcription_wer.csv", index=False)

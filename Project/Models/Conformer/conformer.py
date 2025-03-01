@@ -104,5 +104,8 @@ for speaker_id in sorted(os.listdir(dataset_root)):  # Sorting for better tracki
 
 # Save CSV
 df = pd.DataFrame(transcription_results)
-df.to_csv("conformer_transcriptions.csv", index=False)
-print("Transcriptions saved in 'conformer_transcriptions.csv'.")
+
+# Save results to CSV in a results folder
+results_dir =  os.path.join(os.getcwd(), "results")
+results_path = os.path.join(results_dir, "conformer_transcriptionss.csv")
+df.to_csv(results_path, index=False)

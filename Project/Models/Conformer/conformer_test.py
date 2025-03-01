@@ -92,6 +92,7 @@ for i in range(15):  # From 0000 to 0014
 # Create DataFrame to view results
 df = pd.DataFrame(transcription_results)
 
-# Save results to CSV
-df.to_csv("transcription_test_results.csv", index=False)
-print("Results saved in 'transcription_results.csv'")
+# Save results to CSV in a results folder
+results_dir =  os.path.join(os.getcwd(), "results")
+results_path = os.path.join(results_dir, "transcription_test.csv")
+df.to_csv(results_path, index=False)
