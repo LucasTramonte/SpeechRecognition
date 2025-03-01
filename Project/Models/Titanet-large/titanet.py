@@ -126,7 +126,7 @@ print(f"\nEqual Error Rate (EER): {eer:.2f}%")
 
 # Save EER results
 df_eer = pd.DataFrame([[eer, eer_threshold]], columns=["EER%", "Threshold"])
-eer_csv_path = "eer_results.csv"
+eer_csv_path = "eer.csv"
 df_eer.to_csv(eer_csv_path, index=False)
 print(f"Saved EER results to {eer_csv_path}")
 
@@ -138,11 +138,19 @@ der = (misclassified_speakers / total_files) * 100  # Convert to percentage
 
 print(f"\nDiarization Error Rate (DER): {der:.2f}%")
 
+
+results_dir = os.path.join(os.getcwd(), "results")
+os.makedirs(results_dir, exist_ok=True)
+results_path = os.path.join(results_dir, "transcription_test.csv")
+df.to_csv(results_path, index=False)
+
+
 # Save DER results
 df_der = pd.DataFrame([[der]], columns=["DER%"])
-der_csv_path = "der_results.csv"
-df_der.to_csv(der_csv_path, index=False)
-print(f"Saved DER results to {der_csv_path}")
+results_dir = os.path.join(os.getcwd(), "results")
+os.makedirs(results_dir, exist_ok=True)
+df_der.to_csv(results_dir, index=False)
+print(f"Saved DER results to {results_dir}")
 
 # End timer and print execution time
 end_time = time.time()
