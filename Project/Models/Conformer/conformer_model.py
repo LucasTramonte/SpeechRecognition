@@ -107,5 +107,5 @@ df = pd.DataFrame(transcription_results)
 
 # Save results to CSV in a results folder
 results_dir =  os.path.join(os.getcwd(), "results")
-results_path = os.path.join(results_dir, "conformer_transcriptionss.csv")
+results_path = os.path.join(results_dir, "transcriptions.csv")
 df.to_csv(results_path, index=False)
