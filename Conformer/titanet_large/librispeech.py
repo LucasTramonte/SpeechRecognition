@@ -24,7 +24,7 @@ def get_embedding(audio_path):
     try:
         with torch.no_grad():
             embedding = model.get_embedding(audio_path)
-        return embedding
+        return embedding.squeeze()  # Remove batch dimension (1, 192) -> (192,)
     except Exception as e:
         print(f"Error processing {audio_path}: {e}")
         return None  # Return None in case of failure
@@ -60,12 +60,14 @@ for speaker_id, files in speaker_files.items():
     for file in files:
         embedding = get_embedding(file)
         if embedding is not None:
-            embeddings.append(embedding.cpu().numpy())  # Convert to NumPy for CSV storage
-            embedding_data.append([speaker_id, file, embedding.cpu().numpy().tolist()])
+            # Store as numpy array and list for CSV
+            embedding_np = embedding.cpu().numpy()
+            embeddings.append(embedding_np)
+            embedding_data.append([speaker_id, file, embedding_np.tolist()])
 
-    # Stack embeddings into a tensor
+    # Stack embeddings into a tensor (shape: [num_files, 192])
     if embeddings:
-        speaker_embeddings[speaker_id] = torch.stack([torch.tensor(e) for e in embeddings])
+        speaker_embeddings[speaker_id] = torch.tensor(np.stack(embeddings))
 
 # Convert extracted data to a Pandas DataFrame and save as CSV
 df = pd.DataFrame(embedding_data, columns=["Speaker_ID", "File_Path", "Embedding"])
@@ -83,10 +85,12 @@ speaker_ids = list(speaker_embeddings.keys())
 
 for i in range(len(speaker_ids)):
     for j in range(i + 1, len(speaker_ids)):
-        emb1 = speaker_embeddings[speaker_ids[i]].mean(dim=0).unsqueeze(0)  # Mean embedding
-        emb2 = speaker_embeddings[speaker_ids[j]].mean(dim=0).unsqueeze(0)
+        # Compute mean embedding for each speaker
+        emb1 = speaker_embeddings[speaker_ids[i]].mean(dim=0, keepdim=True)  # [1, 192]
+        emb2 = speaker_embeddings[speaker_ids[j]].mean(dim=0, keepdim=True)  # [1, 192]
 
-        sim = cosine_similarity(emb1, emb2).item()  # Extract single similarity score
+        # Compute cosine similarity along the embedding dimension (-1)
+        sim = cosine_similarity(emb1, emb2, dim=-1).item()
         similarity_results.append([speaker_ids[i], speaker_ids[j], sim])
         
         # Collect scores for EER calculation
@@ -94,11 +98,15 @@ for i in range(len(speaker_ids)):
         all_labels.append(0)  # Different speakers (negative pair)
 
 # Also add positive pairs (same speaker)
-for speaker_id in speaker_embeddings.keys():
-    emb_list = speaker_embeddings[speaker_id]
-    for i in range(len(emb_list)):
-        for j in range(i + 1, len(emb_list)):
-            sim = cosine_similarity(emb_list[i].unsqueeze(0), emb_list[j].unsqueeze(0)).item()
+for speaker_id, embeddings in speaker_embeddings.items():
+    for i in range(len(embeddings)):
+        for j in range(i + 1, len(embeddings)):
+            # Directly use embeddings without unsqueeze (already [192])
+            sim = cosine_similarity(
+                embeddings[i].unsqueeze(0),  # [1, 192]
+                embeddings[j].unsqueeze(0),  # [1, 192]
+                dim=-1
+            ).item()
             all_scores.append(sim)
             all_labels.append(1)  # Same speaker (positive pair)
 
