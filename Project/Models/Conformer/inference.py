@@ -11,8 +11,11 @@ dataset_root = os.path.join("..", "..", "audio", "Datasets", "Test", "LibriSpeec
 # Path to transcription file
 transcription_file = os.path.join(dataset_root, "121-121726.trans.txt")
 
+
+model_path = os.path.join("fine-tunning", "cont-fnt-conf") 
+
 # Speech recognition model
-MODEL_NAME = "facebook/wav2vec2-conformer-rope-large-960h-ft"
+MODEL_NAME = model_path
 
 # Load model and processor
 try:
@@ -94,5 +97,5 @@ df = pd.DataFrame(transcription_results)
 
 # Save results to CSV in a results folder
 results_dir =  os.path.join(os.getcwd(), "results")
-results_path = os.path.join(results_dir, "transcription_test.csv")
+results_path = os.path.join(results_dir, "fine-transcription_test.csv")
 df.to_csv(results_path, index=False)
