@@ -7,13 +7,9 @@ sentencepiece
 tb-nightly
 torch>=1.2.0
 torchaudio
-ace_tools
-seaborn
 matplotlib
 torchvision
 torchaudio
-tensorflow
-tensorflow-gpu
 transformers
 nemo_toolkit
 soundfile

@@ -11,11 +11,8 @@ dataset_root = os.path.join("..", "..", "audio", "Datasets", "Test", "LibriSpeec
 # Path to transcription file
 transcription_file = os.path.join(dataset_root, "121-121726.trans.txt")
 
-
-model_path = os.path.join("fine-tunning", "cont-fnt-conf") 
-
 # Speech recognition model
-MODEL_NAME = model_path
+MODEL_NAME = "deepl-project/conformer-finetunning"
 
 # Load model and processor
 try:
