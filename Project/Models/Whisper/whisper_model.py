@@ -3,26 +3,46 @@ import torch
 import librosa
 import pandas as pd
 import whisper
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Root directory for the dataset
 dataset_root = os.path.join("..", "..", "audio", "Datasets", "Test", "LibriSpeech", "test-clean")
 
 # Load the Whisper model
 # You can choose between "tiny", "base", "small", "medium", "large"
-model = whisper.load_model("tiny")
+try:
+    model = whisper.load_model("tiny")
+    logging.info("Whisper model loaded successfully.")
+except Exception as e:
+    logging.error(f"Error loading Whisper model: {e}")
+    raise
 
 # Define whether to use GPU (only if available)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
+logging.info(f"Using device: {device}")
 
 # List to store transcription results
 transcription_results = []
+
+# Counter for speakers
+speaker_counter = 0
 
 # Loop through all speaker directories in the dataset root
 for speaker_dir in os.listdir(dataset_root):
     speaker_path = os.path.join(dataset_root, speaker_dir)
     if not os.path.isdir(speaker_path):
         continue
+
+    # Increment speaker counter
+    speaker_counter += 1
+
+    # Add a breakpoint for every 10 speakers
+    if speaker_counter % 10 == 0:
+        logging.info(f"Processing speaker {speaker_counter}: {speaker_dir}")
+        breakpoint()
 
     # Loop through all chapter directories for the current speaker
     for chapter_dir in os.listdir(speaker_path):
@@ -43,7 +63,7 @@ for speaker_dir in os.listdir(dataset_root):
                         file_id, text = parts
                         ground_truth_dict[file_id] = text
         else:
-            print(f"Transcription file not found: {transcription_file}")
+            logging.warning(f"Transcription file not found: {transcription_file}")
             continue
 
         # Loop through audio files in the chapter directory
@@ -61,7 +81,7 @@ for speaker_dir in os.listdir(dataset_root):
             try:
                 speech, sr = librosa.load(audio_path, sr=16000)
             except Exception as e:
-                print(f"Error loading {audio_path}: {e}")
+                logging.error(f"Error loading {audio_path}: {e}")
                 continue
 
             # Transcribe the audio with Whisper
@@ -69,7 +89,7 @@ for speaker_dir in os.listdir(dataset_root):
                 result = model.transcribe(speech, fp16=False)
                 transcription = result["text"].strip()
             except Exception as e:
-                print(f"Error transcribing {audio_path}: {e}")
+                logging.error(f"Error transcribing {audio_path}: {e}")
                 transcription = ""
 
             # Store transcription results
@@ -85,7 +105,7 @@ df = pd.DataFrame(transcription_results)
 # Save results
 results_dir = os.path.join(os.getcwd(), "results")
 os.makedirs(results_dir, exist_ok=True)
-results_path = os.path.join(results_dir, "transcription_test.csv")
+results_path = os.path.join(results_dir, "transcription.csv")
 df.to_csv(results_path, index=False)
 
-print(f"Results saved to: {results_path}")
+logging.info(f"Results saved to: {results_path}")

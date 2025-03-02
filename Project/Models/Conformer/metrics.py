@@ -4,7 +4,7 @@ import os
 
 # Load data from CSV
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-csv_path = os.path.join(SCRIPT_DIR, "results", "transcription_test.csv")
+csv_path = os.path.join(SCRIPT_DIR, "results", "transcriptions.csv")
 
 df = pd.read_csv(csv_path)
 
@@ -36,7 +36,7 @@ print(df)
 
 # Save the results to CSV
 results_dir =  os.path.join(os.getcwd(), "results")
-results_path = os.path.join(results_dir, "transcription_wer.csv")
+results_path = os.path.join(results_dir, "transcription_wer_final.csv")
 df.to_csv(results_path, index=False)
 
-print("Analysis saved in 'transcription_wer.csv'")
+print("Analysis saved in 'transcription_wer_final.csv'")
